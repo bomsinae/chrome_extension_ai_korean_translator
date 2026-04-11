@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>문장 번역</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body class="popup-body">
+    <main class="panel">
+      <header class="panel-header">
+        <p class="eyebrow">AI Translation</p>
+        <h1>선택 문장 번역</h1>
+      </header>
+
+      <section class="field-group">
+        <label for="sourceText">선택된 문장</label>
+        <textarea id="sourceText" rows="5" placeholder="웹페이지에서 문장을 선택한 뒤 팝업을 여세요."></textarea>
+      </section>
+
+      <div class="actions">
+        <button id="translateButton" class="primary-button">한글로 번역</button>
+        <button id="openOptionsButton" class="ghost-button">설정</button>
+      </div>
+
+      <p id="status" class="status"></p>
+
+      <section class="field-group">
+        <label for="translatedText">번역 결과</label>
+        <textarea id="translatedText" rows="7" readonly placeholder="여기에 번역 결과가 표시됩니다."></textarea>
+      </section>
+    </main>
+
+    <script src="popup.js" type="module"></script>
+  </body>
+</html>

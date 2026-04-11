@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "Selected Text Translator",
-  "version": "0.1.0",
+  "name": "AI Korean Translator",
+  "version": "0.2.0",
   "description": "Translate selected text on any webpage into Korean with AI.",
   "permissions": [
     "storage",

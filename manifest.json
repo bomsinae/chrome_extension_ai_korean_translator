@@ -25,8 +25,8 @@
   "commands": {
     "translate-selection": {
       "suggested_key": {
-        "default": "Alt+K",
-        "mac": "Alt+K"
+        "default": "Alt+Z",
+        "mac": "Alt+Z"
       },
       "description": "Translate selected text into Korean"
     }

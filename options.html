@@ -20,6 +20,14 @@
           <label for="model">Model</label>
           <input id="model" name="model" type="text" placeholder="gpt-4.1-mini" />
 
+          <label for="translationTone">번역 톤</label>
+          <select id="translationTone" name="translationTone">
+            <option value="natural">자연스럽게</option>
+            <option value="literal">직역에 가깝게</option>
+            <option value="formal">격식 있게</option>
+            <option value="concise">짧고 간결하게</option>
+          </select>
+
           <label class="checkbox-field" for="showInlineButton">
             <input id="showInlineButton" name="showInlineButton" type="checkbox" />
             <span>문장 선택 시 번역 버튼 표시</span>

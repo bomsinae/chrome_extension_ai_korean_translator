@@ -1,12 +1,14 @@
 const DEFAULT_SETTINGS = {
   apiKey: "",
   model: "gpt-4.1-mini",
+  translationTone: "natural",
   showInlineButton: true
 };
 
 const form = document.getElementById("settingsForm");
 const apiKeyInput = document.getElementById("apiKey");
 const modelInput = document.getElementById("model");
+const translationToneInput = document.getElementById("translationTone");
 const showInlineButtonInput = document.getElementById("showInlineButton");
 const saveStatus = document.getElementById("saveStatus");
 
@@ -18,6 +20,7 @@ form.addEventListener("submit", async (event) => {
   await chrome.storage.sync.set({
     apiKey: apiKeyInput.value.trim(),
     model: modelInput.value.trim() || DEFAULT_SETTINGS.model,
+    translationTone: translationToneInput.value || DEFAULT_SETTINGS.translationTone,
     showInlineButton: showInlineButtonInput.checked
   });
 
@@ -29,5 +32,6 @@ async function loadSettings() {
   const settings = await chrome.storage.sync.get(DEFAULT_SETTINGS);
   apiKeyInput.value = settings.apiKey;
   modelInput.value = settings.model;
+  translationToneInput.value = settings.translationTone;
   showInlineButtonInput.checked = settings.showInlineButton;
 }

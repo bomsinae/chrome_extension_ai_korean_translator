@@ -7,7 +7,8 @@
     "storage",
     "activeTab",
     "scripting",
-    "contextMenus"
+    "contextMenus",
+    "clipboardWrite"
   ],
   "host_permissions": [
     "https://api.openai.com/*"
@@ -21,6 +22,15 @@
     "default_popup": "popup.html"
   },
   "options_page": "options.html",
+  "commands": {
+    "translate-selection": {
+      "suggested_key": {
+        "default": "Alt+K",
+        "mac": "Alt+K"
+      },
+      "description": "Translate selected text into Korean"
+    }
+  },
   "content_scripts": [
     {
       "matches": [

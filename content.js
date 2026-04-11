@@ -2,6 +2,8 @@ let lastSelection = "";
 let lastSelectionRect = null;
 let translateButton = null;
 let bubble = null;
+let bubbleText = null;
+let bubbleActions = null;
 let activeRequestId = 0;
 let isPointerSelecting = false;
 let lastPointerPosition = null;
@@ -36,6 +38,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
 
   if (message?.type === "SHOW_TRANSLATOR_POPUP") {
+    captureSelectionState();
+
     const selectedText = window.getSelection()?.toString().trim() || lastSelection;
     if (!selectedText) {
       showBubbleAtCurrentSelection("번역할 문장을 먼저 선택하세요.", true);
@@ -50,6 +54,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
 function handleSelectionChange() {
   if (!showInlineButton) {
+    captureSelectionState();
     hideTranslateButton();
     return;
   }
@@ -70,6 +75,7 @@ function handlePointerSelectionEnd(event) {
   };
 
   if (!showInlineButton) {
+    captureSelectionState();
     hideTranslateButton();
     return;
   }
@@ -79,6 +85,7 @@ function handlePointerSelectionEnd(event) {
 
 function handleKeyboardSelectionEnd(event) {
   if (!showInlineButton) {
+    captureSelectionState();
     hideTranslateButton();
     return;
   }
@@ -91,42 +98,23 @@ function handleKeyboardSelectionEnd(event) {
 function updateSelectionUi() {
   window.setTimeout(() => {
     if (!showInlineButton) {
+      captureSelectionState();
       hideTranslateButton();
       return;
     }
 
-    const selection = window.getSelection();
-    const selectedText = selection?.toString().trim() || "";
-
-    if (!selectedText || !selection || selection.rangeCount === 0) {
+    const selectionState = captureSelectionState();
+    if (!selectionState) {
       hideTranslateButton();
       return;
     }
 
-    if (selectedText === hiddenSelectionText) {
+    if (selectionState.text === hiddenSelectionText) {
       hideTranslateButton();
       return;
     }
 
-    const range = selection.getRangeAt(0);
-    const rect = getRangeRect(range);
-    if (!rect) {
-      hideTranslateButton();
-      return;
-    }
-
-    lastSelection = selectedText;
-    lastSelectionRect = rect;
-    lastSelectionAnchor = {
-      left: window.scrollX + rect.left,
-      top: window.scrollY + rect.top,
-      bottom: window.scrollY + rect.bottom,
-      viewportTop: rect.top,
-      viewportBottom: rect.bottom,
-      scrollX: window.scrollX,
-      scrollY: window.scrollY
-    };
-    renderTranslateButton(rect, lastPointerPosition);
+    renderTranslateButton(selectionState.rect, lastPointerPosition);
   }, 0);
 }
 
@@ -149,6 +137,38 @@ async function loadInlineButtonSetting() {
   if (!showInlineButton) {
     hideTranslateButton();
   }
+}
+
+function captureSelectionState() {
+  const selection = window.getSelection();
+  const selectedText = selection?.toString().trim() || "";
+
+  if (!selectedText || !selection || selection.rangeCount === 0) {
+    return null;
+  }
+
+  const range = selection.getRangeAt(0);
+  const rect = getRangeRect(range);
+  if (!rect) {
+    return null;
+  }
+
+  lastSelection = selectedText;
+  lastSelectionRect = rect;
+  lastSelectionAnchor = {
+    left: window.scrollX + rect.left,
+    top: window.scrollY + rect.top,
+    bottom: window.scrollY + rect.bottom,
+    viewportTop: rect.top,
+    viewportBottom: rect.bottom,
+    scrollX: window.scrollX,
+    scrollY: window.scrollY
+  };
+
+  return {
+    text: selectedText,
+    rect
+  };
 }
 
 function renderTranslateButton(rect, pointerPosition) {
@@ -263,16 +283,98 @@ function showBubbleAtCurrentSelection(message, isError, isLoading = false) {
       whiteSpace: "pre-wrap"
     });
 
+    bubbleText = document.createElement("div");
+    bubbleActions = document.createElement("div");
+
+    const copyButton = document.createElement("button");
+    copyButton.type = "button";
+    copyButton.textContent = "복사";
+    styleBubbleAction(copyButton);
+    copyButton.addEventListener("click", async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      await copyBubbleText(copyButton);
+    });
+
+    const closeButton = document.createElement("button");
+    closeButton.type = "button";
+    closeButton.textContent = "닫기";
+    styleBubbleAction(closeButton);
+    closeButton.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      removeBubble();
+    });
+
+    Object.assign(bubbleActions.style, {
+      display: "flex",
+      justifyContent: "flex-end",
+      gap: "8px",
+      marginTop: "12px"
+    });
+
+    bubbleActions.append(copyButton, closeButton);
+    bubble.append(bubbleText, bubbleActions);
     document.body.appendChild(bubble);
   }
 
-  bubble.textContent = message;
+  bubbleText.textContent = message;
   bubble.dataset.error = isError ? "true" : "false";
   bubble.style.color = isError ? "#9f1239" : "#261a12";
   bubble.style.opacity = isLoading ? "0.82" : "1";
+  bubbleActions.style.display = isLoading ? "none" : "flex";
   bubble.style.display = "block";
 
   positionBubble(lastSelectionRect, lastSelectionAnchor);
+}
+
+function styleBubbleAction(button) {
+  Object.assign(button.style, {
+    border: "1px solid rgba(103, 80, 55, 0.2)",
+    borderRadius: "999px",
+    padding: "6px 10px",
+    background: "rgba(255, 255, 255, 0.72)",
+    color: "#261a12",
+    fontSize: "13px",
+    fontWeight: "700",
+    fontFamily: "system-ui, sans-serif",
+    cursor: "pointer"
+  });
+}
+
+async function copyBubbleText(copyButton) {
+  const text = bubbleText?.textContent || "";
+  if (!text) {
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch (_error) {
+    copyTextWithFallback(text);
+  }
+
+  const originalText = copyButton.textContent;
+  copyButton.textContent = "복사됨";
+  window.setTimeout(() => {
+    copyButton.textContent = originalText;
+  }, 1200);
+}
+
+function copyTextWithFallback(text) {
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  Object.assign(textarea.style, {
+    position: "fixed",
+    top: "-9999px",
+    left: "-9999px"
+  });
+
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand("copy");
+  textarea.remove();
 }
 
 function positionBubble(rect, anchor = lastSelectionAnchor) {
@@ -298,7 +400,8 @@ function positionBubble(rect, anchor = lastSelectionAnchor) {
     top = anchor.scrollY + clampedViewportTop;
   }
 
-  const left = Math.min(anchor.left, anchor.scrollX + maxLeft);
+  const viewportLeft = Math.max(gap, Math.min(anchor.left - anchor.scrollX, maxLeft));
+  const left = anchor.scrollX + viewportLeft;
 
   bubble.style.top = `${top}px`;
   bubble.style.left = `${left}px`;

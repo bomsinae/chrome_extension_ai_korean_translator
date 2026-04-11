@@ -7,13 +7,26 @@ let isPointerSelecting = false;
 let lastPointerPosition = null;
 let hiddenSelectionText = "";
 let lastSelectionAnchor = null;
+let showInlineButton = true;
 
+loadInlineButtonSetting();
 document.addEventListener("selectionchange", handleSelectionChange);
 document.addEventListener("mousedown", handleDocumentMouseDown, true);
 document.addEventListener("mouseup", handlePointerSelectionEnd, true);
 document.addEventListener("keyup", handleKeyboardSelectionEnd, true);
 window.addEventListener("scroll", hideTranslateButton, true);
 window.addEventListener("resize", repositionFloatingUi);
+
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName !== "sync" || !changes.showInlineButton) {
+    return;
+  }
+
+  showInlineButton = changes.showInlineButton.newValue !== false;
+  if (!showInlineButton) {
+    hideTranslateButton();
+  }
+});
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type === "GET_SELECTED_TEXT") {
@@ -36,6 +49,11 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 });
 
 function handleSelectionChange() {
+  if (!showInlineButton) {
+    hideTranslateButton();
+    return;
+  }
+
   if (isPointerSelecting) {
     hideTranslateButton();
     return;
@@ -50,10 +68,21 @@ function handlePointerSelectionEnd(event) {
     x: event.clientX,
     y: event.clientY
   };
+
+  if (!showInlineButton) {
+    hideTranslateButton();
+    return;
+  }
+
   updateSelectionUi();
 }
 
 function handleKeyboardSelectionEnd(event) {
+  if (!showInlineButton) {
+    hideTranslateButton();
+    return;
+  }
+
   if (event.key.startsWith("Arrow") || event.key === "Shift") {
     updateSelectionUi();
   }
@@ -61,6 +90,11 @@ function handleKeyboardSelectionEnd(event) {
 
 function updateSelectionUi() {
   window.setTimeout(() => {
+    if (!showInlineButton) {
+      hideTranslateButton();
+      return;
+    }
+
     const selection = window.getSelection();
     const selectedText = selection?.toString().trim() || "";
 
@@ -107,6 +141,14 @@ function handleDocumentMouseDown(event) {
   hideTranslateButton();
   removeBubble();
   hiddenSelectionText = "";
+}
+
+async function loadInlineButtonSetting() {
+  const settings = await chrome.storage.sync.get({ showInlineButton: true });
+  showInlineButton = settings.showInlineButton !== false;
+  if (!showInlineButton) {
+    hideTranslateButton();
+  }
 }
 
 function renderTranslateButton(rect, pointerPosition) {

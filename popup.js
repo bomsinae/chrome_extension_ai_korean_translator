@@ -2,6 +2,8 @@ const sourceText = document.getElementById("sourceText");
 const translatedText = document.getElementById("translatedText");
 const statusText = document.getElementById("status");
 const translateButton = document.getElementById("translateButton");
+const translatePageButton = document.getElementById("translatePageButton");
+const restorePageButton = document.getElementById("restorePageButton");
 const openOptionsButton = document.getElementById("openOptionsButton");
 
 initialize();
@@ -55,13 +57,67 @@ translateButton.addEventListener("click", async () => {
   }
 });
 
+translatePageButton.addEventListener("click", async () => {
+  setPageLoading(true);
+  setStatus("보이는 부분 번역을 시작합니다...", false);
+
+  try {
+    const tabId = await getActiveTabId();
+    const response = await chrome.tabs.sendMessage(tabId, { type: "TRANSLATE_PAGE" });
+
+    if (!response?.ok) {
+      throw new Error(response?.error || "알 수 없는 오류");
+    }
+
+    window.close();
+  } catch (error) {
+    setStatus(error.message || "화면 번역 중 오류가 발생했습니다.", true);
+    setPageLoading(false);
+  }
+});
+
+restorePageButton.addEventListener("click", async () => {
+  setPageLoading(true);
+  setStatus("원문으로 복원 중...", false);
+
+  try {
+    const tabId = await getActiveTabId();
+    const response = await chrome.tabs.sendMessage(tabId, { type: "RESTORE_PAGE_TRANSLATION" });
+
+    if (!response?.ok) {
+      throw new Error(response?.error || "알 수 없는 오류");
+    }
+
+    setStatus(`원문으로 복원했습니다 (${response.count}개).`, false);
+  } catch (error) {
+    setStatus(error.message || "원문 복원 중 오류가 발생했습니다.", true);
+  } finally {
+    setPageLoading(false);
+  }
+});
+
 openOptionsButton.addEventListener("click", () => {
   chrome.runtime.openOptionsPage();
 });
 
+async function getActiveTabId() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.id) {
+    throw new Error("활성 탭을 찾지 못했습니다.");
+  }
+
+  return tab.id;
+}
+
 function setLoading(isLoading) {
   translateButton.disabled = isLoading;
   translateButton.textContent = isLoading ? "번역 중..." : "한글로 번역";
+}
+
+function setPageLoading(isLoading) {
+  translatePageButton.disabled = isLoading;
+  restorePageButton.disabled = isLoading;
+  translatePageButton.textContent = isLoading ? "화면 번역 중..." : "보이는 부분 번역";
 }
 
 function setStatus(message, isError) {

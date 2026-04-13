@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "AI Korean Translator",
   "version": "0.2.0",
-  "description": "Translate selected text on any webpage into Korean with AI.",
+  "description": "Translate selected text or visible page text into Korean with AI.",
   "permissions": [
     "storage",
     "activeTab",
@@ -18,7 +18,7 @@
     "type": "module"
   },
   "action": {
-    "default_title": "Translate selection",
+    "default_title": "AI Korean Translator",
     "default_popup": "popup.html"
   },
   "options_page": "options.html",

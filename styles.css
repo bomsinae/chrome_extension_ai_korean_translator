@@ -137,6 +137,14 @@ select:focus {
   margin-top: 16px;
 }
 
+.page-actions {
+  margin-top: 10px;
+}
+
+.page-actions .primary-button {
+  flex: 1;
+}
+
 button {
   border: 0;
   border-radius: 999px;

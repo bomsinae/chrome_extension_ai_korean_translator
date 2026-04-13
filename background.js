@@ -46,15 +46,23 @@ async function translateInTab(tabId) {
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message?.type !== "TRANSLATE_TEXT") {
-    return false;
+  if (message?.type === "TRANSLATE_TEXT") {
+    translateText(message.text)
+      .then((result) => sendResponse({ ok: true, result }))
+      .catch((error) => sendResponse({ ok: false, error: error.message }));
+
+    return true;
   }
 
-  translateText(message.text)
-    .then((result) => sendResponse({ ok: true, result }))
-    .catch((error) => sendResponse({ ok: false, error: error.message }));
+  if (message?.type === "TRANSLATE_TEXT_BATCH") {
+    translateTextBatch(message.items || message.texts)
+      .then((results) => sendResponse({ ok: true, results }))
+      .catch((error) => sendResponse({ ok: false, error: error.message }));
 
-  return true;
+    return true;
+  }
+
+  return false;
 });
 
 async function translateText(text) {
@@ -127,6 +135,94 @@ async function translateText(text) {
   return translated;
 }
 
+async function translateTextBatch(items) {
+  const textItems = normalizeTranslationItems(items);
+
+  if (!textItems.length || textItems.some((item) => !item.id || !item.text)) {
+    throw new Error("번역할 화면 문장을 찾지 못했습니다.");
+  }
+
+  const expectedIds = textItems.map((item) => item.id);
+  const settings = await chrome.storage.sync.get(DEFAULT_SETTINGS);
+  if (!settings.apiKey) {
+    throw new Error("옵션 페이지에서 OpenAI API 키를 먼저 설정하세요.");
+  }
+
+  const tone = settings.translationTone || DEFAULT_SETTINGS.translationTone;
+  const model = settings.model || DEFAULT_SETTINGS.model;
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${settings.apiKey}`
+    },
+    body: JSON.stringify({
+      model,
+      input: [
+        {
+          role: "system",
+          content: [
+            {
+              type: "input_text",
+              text: [
+                "You are a translation engine.",
+                "The user's input is a JSON array of objects with id and text fields.",
+                "Translate each text field into Korean.",
+                getToneInstruction(tone),
+                "Preserve each item's meaning and tone.",
+                "Return only a valid JSON array of objects.",
+                "Each object must have exactly the same id and a translation field.",
+                "Use this exact object shape: {\"id\":\"same id\",\"translation\":\"Korean translation\"}.",
+                `Return exactly these ${expectedIds.length} ids: ${expectedIds.join(", ")}.`,
+                "Do not include Markdown fences, explanations, or numbering."
+              ].join(" ")
+            }
+          ]
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "input_text",
+              text: JSON.stringify(textItems)
+            }
+          ]
+        }
+      ]
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`API 요청 실패: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  const translatedText = extractOutputText(data);
+  const translations = parseTranslationItems(translatedText, expectedIds);
+  return translations;
+}
+
+function normalizeTranslationItems(items) {
+  if (!Array.isArray(items)) {
+    return [];
+  }
+
+  return items.map((item, index) => {
+    if (typeof item === "string") {
+      return {
+        id: `item-${index}`,
+        text: item.trim()
+      };
+    }
+
+    return {
+      id: `${item?.id || ""}`.trim(),
+      text: `${item?.text || ""}`.trim()
+    };
+  });
+}
+
 function getToneInstruction(tone) {
   const instructions = {
     natural: "Use natural Korean that reads smoothly.",
@@ -183,4 +279,74 @@ function extractOutputText(data) {
   }
 
   return "";
+}
+
+function parseTranslationItems(text, expectedIds) {
+  const trimmedText = `${text || ""}`.trim();
+  if (!trimmedText) {
+    throw new Error("화면 번역 결과를 읽지 못했습니다.");
+  }
+
+  const expectedIdSet = new Set(expectedIds);
+  const jsonText = stripJsonFence(trimmedText);
+  const candidates = [jsonText];
+  const arrayStart = jsonText.indexOf("[");
+  const arrayEnd = jsonText.lastIndexOf("]");
+  if (arrayStart >= 0 && arrayEnd > arrayStart) {
+    candidates.push(jsonText.slice(arrayStart, arrayEnd + 1));
+  }
+
+  for (const candidate of candidates) {
+    try {
+      const parsed = JSON.parse(candidate);
+      if (!Array.isArray(parsed)) {
+        continue;
+      }
+
+      const translationsById = new Map();
+      for (const item of parsed) {
+        const id = `${item?.id || ""}`.trim();
+        const translation = `${item?.translation || ""}`.trim();
+
+        if (!id || !expectedIdSet.has(id)) {
+          continue;
+        }
+
+        if (translationsById.has(id)) {
+          throw new Error("화면 번역 결과 ID가 중복되었습니다.");
+        }
+
+        if (!translation) {
+          throw new Error("화면 번역 결과를 읽지 못했습니다.");
+        }
+
+        translationsById.set(id, translation);
+      }
+
+      const missingId = expectedIds.find((id) => !translationsById.has(id));
+      if (missingId) {
+        throw new Error("화면 번역 결과 ID가 원문과 맞지 않습니다.");
+      }
+
+      return expectedIds.map((id) => ({
+        id,
+        translation: translationsById.get(id)
+      }));
+    } catch (error) {
+      if (
+        error.message === "화면 번역 결과 ID가 원문과 맞지 않습니다." ||
+        error.message === "화면 번역 결과 ID가 중복되었습니다." ||
+        error.message === "화면 번역 결과를 읽지 못했습니다."
+      ) {
+        throw error;
+      }
+    }
+  }
+
+  throw new Error("화면 번역 결과를 JSON으로 읽지 못했습니다.");
+}
+
+function stripJsonFence(text) {
+  const fenceMatch = text.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+  return fenceMatch ? fenceMatch[1].trim() : text;
 }

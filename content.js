@@ -4,6 +4,7 @@ let translateButton = null;
 let bubble = null;
 let bubbleText = null;
 let bubbleActions = null;
+let bubbleOptionsButton = null;
 let activeRequestId = 0;
 let isPointerSelecting = false;
 let lastPointerPosition = null;
@@ -17,6 +18,7 @@ let pageTranslationStatus = null;
 let pageTranslationStatusText = null;
 let pageTranslationMoreButton = null;
 let pageTranslationRestoreButton = null;
+let pageTranslationOptionsButton = null;
 
 const PAGE_TRANSLATION_MAX_NODES = 220;
 const PAGE_TRANSLATION_MAX_CHARS = 10000;
@@ -77,7 +79,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type === "TRANSLATE_PAGE") {
     translatePageToKorean()
       .catch((error) => {
-        showPageTranslationStatus(error.message || "화면 번역 중 오류가 발생했습니다.", true, hasPageTranslationOriginals());
+        showPageTranslationStatus(
+          error.message || "화면 번역 중 오류가 발생했습니다.",
+          true,
+          hasPageTranslationOriginals(),
+          isMissingApiKeyError(error)
+        );
       });
 
     sendResponse({ ok: true, started: true });
@@ -297,7 +304,12 @@ async function requestTranslation(text) {
       return;
     }
 
-    showBubbleAtCurrentSelection(error.message || "번역 중 오류가 발생했습니다.", true);
+    showBubbleAtCurrentSelection(
+      error.message || "번역 중 오류가 발생했습니다.",
+      true,
+      false,
+      isMissingApiKeyError(error)
+    );
   }
 }
 
@@ -557,7 +569,7 @@ function restorePageTranslation() {
   return { count: restoredCount };
 }
 
-function showPageTranslationStatus(message, isError, showRestore) {
+function showPageTranslationStatus(message, isError, showRestore, showOptions = false) {
   if (!pageTranslationStatus) {
     pageTranslationStatus = document.createElement("div");
     pageTranslationStatus.dataset.aiKoreanTranslatorUi = "true";
@@ -597,8 +609,23 @@ function showPageTranslationStatus(message, isError, showRestore) {
       event.preventDefault();
       event.stopPropagation();
       translatePageToKorean().catch((error) => {
-        showPageTranslationStatus(error.message || "화면 번역 중 오류가 발생했습니다.", true, hasPageTranslationOriginals());
+        showPageTranslationStatus(
+          error.message || "화면 번역 중 오류가 발생했습니다.",
+          true,
+          hasPageTranslationOriginals(),
+          isMissingApiKeyError(error)
+        );
       });
+    });
+
+    pageTranslationOptionsButton = document.createElement("button");
+    pageTranslationOptionsButton.type = "button";
+    pageTranslationOptionsButton.textContent = "설정";
+    stylePageTranslationAction(pageTranslationOptionsButton);
+    pageTranslationOptionsButton.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      openOptionsPage();
     });
 
     pageTranslationRestoreButton = document.createElement("button");
@@ -621,7 +648,7 @@ function showPageTranslationStatus(message, isError, showRestore) {
       hidePageTranslationStatus();
     });
 
-    actions.append(pageTranslationMoreButton, pageTranslationRestoreButton, closeButton);
+    actions.append(pageTranslationMoreButton, pageTranslationOptionsButton, pageTranslationRestoreButton, closeButton);
     pageTranslationStatus.append(pageTranslationStatusText, actions);
     document.body.appendChild(pageTranslationStatus);
   }
@@ -630,19 +657,21 @@ function showPageTranslationStatus(message, isError, showRestore) {
   pageTranslationStatus.style.display = "block";
   pageTranslationStatus.style.color = isError ? "#9f1239" : "#261a12";
   pageTranslationStatus.style.borderColor = isError ? "rgba(159, 18, 57, 0.38)" : "rgba(103, 80, 55, 0.24)";
-  setPageTranslationActionState(showRestore);
+  setPageTranslationActionState(showRestore, showOptions);
 }
 
-function setPageTranslationActionState(showActions) {
-  if (!pageTranslationMoreButton || !pageTranslationRestoreButton) {
+function setPageTranslationActionState(showActions, showOptions) {
+  if (!pageTranslationMoreButton || !pageTranslationRestoreButton || !pageTranslationOptionsButton) {
     return;
   }
 
   const display = showActions ? "inline-flex" : "none";
   pageTranslationMoreButton.style.display = display;
   pageTranslationRestoreButton.style.display = showActions && hasPageTranslationOriginals() ? "inline-flex" : "none";
+  pageTranslationOptionsButton.style.display = showOptions ? "inline-flex" : "none";
   pageTranslationMoreButton.disabled = !showActions;
   pageTranslationRestoreButton.disabled = !showActions;
+  pageTranslationOptionsButton.disabled = !showOptions;
 }
 
 function stylePageTranslationAction(button) {
@@ -670,7 +699,15 @@ function hasPageTranslationOriginals() {
   return pageTranslationOriginalNodes.some((node) => node.isConnected);
 }
 
-function showBubbleAtCurrentSelection(message, isError, isLoading = false) {
+function isMissingApiKeyError(error) {
+  return `${error?.message || error || ""}`.includes("API 키");
+}
+
+function openOptionsPage() {
+  chrome.runtime.sendMessage({ type: "OPEN_OPTIONS_PAGE" }).catch(() => {});
+}
+
+function showBubbleAtCurrentSelection(message, isError, isLoading = false, showOptions = false) {
   if (!lastSelectionRect || !lastSelectionAnchor) {
     return;
   }
@@ -698,6 +735,16 @@ function showBubbleAtCurrentSelection(message, isError, isLoading = false) {
     bubbleText = document.createElement("div");
     bubbleActions = document.createElement("div");
 
+    bubbleOptionsButton = document.createElement("button");
+    bubbleOptionsButton.type = "button";
+    bubbleOptionsButton.textContent = "설정";
+    styleBubbleAction(bubbleOptionsButton);
+    bubbleOptionsButton.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      openOptionsPage();
+    });
+
     const copyButton = document.createElement("button");
     copyButton.type = "button";
     copyButton.textContent = "복사";
@@ -721,11 +768,12 @@ function showBubbleAtCurrentSelection(message, isError, isLoading = false) {
     Object.assign(bubbleActions.style, {
       display: "flex",
       justifyContent: "flex-end",
+      flexWrap: "wrap",
       gap: "8px",
       marginTop: "12px"
     });
 
-    bubbleActions.append(copyButton, closeButton);
+    bubbleActions.append(bubbleOptionsButton, copyButton, closeButton);
     bubble.append(bubbleText, bubbleActions);
     document.body.appendChild(bubble);
   }
@@ -735,6 +783,8 @@ function showBubbleAtCurrentSelection(message, isError, isLoading = false) {
   bubble.style.color = isError ? "#9f1239" : "#261a12";
   bubble.style.opacity = isLoading ? "0.82" : "1";
   bubbleActions.style.display = isLoading ? "none" : "flex";
+  bubbleOptionsButton.style.display = showOptions ? "inline-flex" : "none";
+  bubbleOptionsButton.disabled = !showOptions;
   bubble.style.display = "block";
 
   positionBubble(lastSelectionRect, lastSelectionAnchor);

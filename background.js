@@ -46,6 +46,18 @@ async function translateInTab(tabId) {
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.type === "OPEN_OPTIONS_PAGE") {
+    try {
+      Promise.resolve(chrome.runtime.openOptionsPage())
+        .then(() => sendResponse({ ok: true }))
+        .catch((error) => sendResponse({ ok: false, error: error.message }));
+    } catch (error) {
+      sendResponse({ ok: false, error: error.message });
+    }
+
+    return true;
+  }
+
   if (message?.type === "TRANSLATE_TEXT") {
     translateText(message.text)
       .then((result) => sendResponse({ ok: true, result }))

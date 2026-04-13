@@ -1,6 +1,6 @@
 const DEFAULT_SETTINGS = {
   apiKey: "",
-  model: "gpt-4.1-mini",
+  model: "gpt-5.4-mini",
   translationTone: "natural"
 };
 const CACHE_KEY = "translationCache";

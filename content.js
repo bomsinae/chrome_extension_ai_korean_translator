@@ -11,6 +11,7 @@ let lastPointerPosition = null;
 let hiddenSelectionText = "";
 let lastSelectionAnchor = null;
 let showInlineButton = true;
+let bubbleFont = "system";
 let pageTranslationSessionId = 0;
 let pageTranslationOriginalTexts = new WeakMap();
 let pageTranslationOriginalNodes = [];
@@ -37,8 +38,14 @@ const PAGE_TRANSLATION_SKIP_TAGS = new Set([
   "SVG",
   "CANVAS"
 ]);
+const BUBBLE_FONT_FAMILIES = {
+  system: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+  sans: "Arial, 'Noto Sans KR', 'Malgun Gothic', sans-serif",
+  serif: "Georgia, 'Times New Roman', serif",
+  mono: "'SFMono-Regular', Consolas, 'Liberation Mono', monospace"
+};
 
-loadInlineButtonSetting();
+loadContentSettings();
 document.addEventListener("selectionchange", handleSelectionChange);
 document.addEventListener("mousedown", handleDocumentMouseDown, true);
 document.addEventListener("mouseup", handlePointerSelectionEnd, true);
@@ -47,13 +54,20 @@ window.addEventListener("scroll", hideTranslateButton, true);
 window.addEventListener("resize", repositionFloatingUi);
 
 chrome.storage.onChanged.addListener((changes, areaName) => {
-  if (areaName !== "sync" || !changes.showInlineButton) {
+  if (areaName !== "sync") {
     return;
   }
 
-  showInlineButton = changes.showInlineButton.newValue !== false;
-  if (!showInlineButton) {
-    hideTranslateButton();
+  if (changes.showInlineButton) {
+    showInlineButton = changes.showInlineButton.newValue !== false;
+    if (!showInlineButton) {
+      hideTranslateButton();
+    }
+  }
+
+  if (changes.bubbleFont) {
+    bubbleFont = changes.bubbleFont.newValue || "system";
+    applyBubbleFont();
   }
 });
 
@@ -179,9 +193,13 @@ function handleDocumentMouseDown(event) {
   hiddenSelectionText = "";
 }
 
-async function loadInlineButtonSetting() {
-  const settings = await chrome.storage.sync.get({ showInlineButton: true });
+async function loadContentSettings() {
+  const settings = await chrome.storage.sync.get({
+    showInlineButton: true,
+    bubbleFont: "system"
+  });
   showInlineButton = settings.showInlineButton !== false;
+  bubbleFont = settings.bubbleFont || "system";
   if (!showInlineButton) {
     hideTranslateButton();
   }
@@ -727,7 +745,7 @@ function showBubbleAtCurrentSelection(message, isError, isLoading = false, showO
       color: "#261a12",
       fontSize: "17px",
       lineHeight: "1.5",
-      fontFamily: "Georgia, 'Times New Roman', serif",
+      fontFamily: getBubbleFontFamily(),
       boxShadow: "0 18px 45px rgba(61, 37, 21, 0.16)",
       whiteSpace: "pre-wrap"
     });
@@ -788,6 +806,16 @@ function showBubbleAtCurrentSelection(message, isError, isLoading = false, showO
   bubble.style.display = "block";
 
   positionBubble(lastSelectionRect, lastSelectionAnchor);
+}
+
+function applyBubbleFont() {
+  if (bubble) {
+    bubble.style.fontFamily = getBubbleFontFamily();
+  }
+}
+
+function getBubbleFontFamily() {
+  return BUBBLE_FONT_FAMILIES[bubbleFont] || BUBBLE_FONT_FAMILIES.system;
 }
 
 function styleBubbleAction(button) {

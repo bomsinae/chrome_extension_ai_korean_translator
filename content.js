@@ -12,6 +12,7 @@ let hiddenSelectionText = "";
 let lastSelectionAnchor = null;
 let showInlineButton = true;
 let bubbleFont = "system";
+let bubbleFontSize = "medium";
 let pageTranslationSessionId = 0;
 let pageTranslationOriginalTexts = new WeakMap();
 let pageTranslationOriginalNodes = [];
@@ -44,6 +45,13 @@ const BUBBLE_FONT_FAMILIES = {
   serif: "Georgia, 'Times New Roman', serif",
   mono: "'SFMono-Regular', Consolas, 'Liberation Mono', monospace"
 };
+const BUBBLE_FONT_SIZES = {
+  xsmall: "13px",
+  small: "14px",
+  medium: "15px",
+  large: "17px",
+  xlarge: "19px"
+};
 
 loadContentSettings();
 document.addEventListener("selectionchange", handleSelectionChange);
@@ -67,7 +75,12 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 
   if (changes.bubbleFont) {
     bubbleFont = changes.bubbleFont.newValue || "system";
-    applyBubbleFont();
+    applyBubbleTypography();
+  }
+
+  if (changes.bubbleFontSize) {
+    bubbleFontSize = changes.bubbleFontSize.newValue || "medium";
+    applyBubbleTypography();
   }
 });
 
@@ -196,10 +209,12 @@ function handleDocumentMouseDown(event) {
 async function loadContentSettings() {
   const settings = await chrome.storage.sync.get({
     showInlineButton: true,
-    bubbleFont: "system"
+    bubbleFont: "system",
+    bubbleFontSize: "medium"
   });
   showInlineButton = settings.showInlineButton !== false;
   bubbleFont = settings.bubbleFont || "system";
+  bubbleFontSize = settings.bubbleFontSize || "medium";
   if (!showInlineButton) {
     hideTranslateButton();
   }
@@ -743,7 +758,7 @@ function showBubbleAtCurrentSelection(message, isError, isLoading = false, showO
       border: "1px solid rgba(103, 80, 55, 0.18)",
       background: "rgba(255, 251, 245, 0.96)",
       color: "#261a12",
-      fontSize: "17px",
+      fontSize: getBubbleFontSize(),
       lineHeight: "1.5",
       fontFamily: getBubbleFontFamily(),
       boxShadow: "0 18px 45px rgba(61, 37, 21, 0.16)",
@@ -808,14 +823,19 @@ function showBubbleAtCurrentSelection(message, isError, isLoading = false, showO
   positionBubble(lastSelectionRect, lastSelectionAnchor);
 }
 
-function applyBubbleFont() {
+function applyBubbleTypography() {
   if (bubble) {
     bubble.style.fontFamily = getBubbleFontFamily();
+    bubble.style.fontSize = getBubbleFontSize();
   }
 }
 
 function getBubbleFontFamily() {
   return BUBBLE_FONT_FAMILIES[bubbleFont] || BUBBLE_FONT_FAMILIES.system;
+}
+
+function getBubbleFontSize() {
+  return BUBBLE_FONT_SIZES[bubbleFontSize] || BUBBLE_FONT_SIZES.medium;
 }
 
 function styleBubbleAction(button) {

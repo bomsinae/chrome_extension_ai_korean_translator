@@ -3,8 +3,13 @@
 AI를 이용하여 선택한 문장이나 현재 화면에 보이는 주요 텍스트를 한국어로 번역하는 크롬 확장입니다.
 
 ## 스크린샷
-### 번역말풍선
+### 선택한 부분 번역
+번역하고 싶은 문장을 마우스로 선택하여 번역할 수 있습니다.
 <img width="2335" height="1783" alt="image" src="https://github.com/user-attachments/assets/ab404b5a-21d9-455d-81a1-86971f5f3083" />
+
+### 보이는 화면 번역
+보고 있는 부분을 번역할 수 있습니다. 화면을 스크롤하여 추가 번역할 수 있습니다.
+<img width="2314" height="1793" alt="image" src="https://github.com/user-attachments/assets/51887d70-dfd6-4566-9714-cd2f4406fb72" />
 
 ### 설정화면
 <img width="559" height="736" alt="image" src="https://github.com/user-attachments/assets/5c737bdc-2051-4216-99da-1ea73974264f" />

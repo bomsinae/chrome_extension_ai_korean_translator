@@ -3,9 +3,10 @@
 AI를 이용하여 선택한 문장이나 현재 화면에 보이는 주요 텍스트를 한국어로 번역하는 크롬 확장입니다.
 
 ## 스크린샷
+### 번역말풍선
 <img width="2335" height="1783" alt="image" src="https://github.com/user-attachments/assets/ab404b5a-21d9-455d-81a1-86971f5f3083" />
 
-
+### 설정화면
 <img width="559" height="736" alt="image" src="https://github.com/user-attachments/assets/5c737bdc-2051-4216-99da-1ea73974264f" />
 
 

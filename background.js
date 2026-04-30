@@ -5,21 +5,36 @@ const DEFAULT_SETTINGS = {
 };
 const CACHE_KEY = "translationCache";
 const MAX_CACHE_ITEMS = 50;
+const MENU_TRANSLATE_SELECTION = "translate-selection";
+const MENU_TRANSLATE_VISIBLE_PAGE = "translate-visible-page";
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
-    id: "translate-selection",
+    id: MENU_TRANSLATE_SELECTION,
     title: "선택 문장 번역하기",
     contexts: ["selection"]
+  });
+
+  chrome.contextMenus.create({
+    id: MENU_TRANSLATE_VISIBLE_PAGE,
+    title: "보이는 부분 번역",
+    contexts: ["page", "frame", "selection", "link", "image", "video", "audio"]
   });
 });
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
-  if (info.menuItemId !== "translate-selection" || !tab?.id) {
+  if (!tab?.id) {
     return;
   }
 
-  await translateInTab(tab.id);
+  if (info.menuItemId === MENU_TRANSLATE_SELECTION) {
+    await translateInTab(tab.id);
+    return;
+  }
+
+  if (info.menuItemId === MENU_TRANSLATE_VISIBLE_PAGE) {
+    await translateVisiblePageInTab(tab.id);
+  }
 });
 
 chrome.commands.onCommand.addListener(async (command) => {
@@ -39,6 +54,16 @@ async function translateInTab(tabId) {
   try {
     await chrome.tabs.sendMessage(tabId, {
       type: "SHOW_TRANSLATOR_POPUP"
+    });
+  } catch (_error) {
+    // Chrome internal pages and some restricted pages cannot receive content-script messages.
+  }
+}
+
+async function translateVisiblePageInTab(tabId) {
+  try {
+    await chrome.tabs.sendMessage(tabId, {
+      type: "TRANSLATE_PAGE"
     });
   } catch (_error) {
     // Chrome internal pages and some restricted pages cannot receive content-script messages.

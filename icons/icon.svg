@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="AI Korean Translator icon">
+  <defs>
+    <linearGradient id="background" x1="18" y1="12" x2="110" y2="116" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0f766e"/>
+      <stop offset="1" stop-color="#14532d"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="26" fill="url(#background)"/>
+  <path d="M24 28h66c12.2 0 22 9.8 22 22v20c0 12.2-9.8 22-22 22H63l-25 18V92H24c-12.2 0-22-9.8-22-22V50c0-12.2 9.8-22 22-22z" fill="#f8fafc"/>
+  <path d="M88 35c9.4 0 17 7.6 17 17v16c0 9.4-7.6 17-17 17H61l-16 12V85H30c-9.4 0-17-7.6-17-17V52c0-9.4 7.6-17 17-17h58z" fill="#ffffff"/>
+  <path d="M36 72l11-28h9l11 28h-8l-2-6H46l-2 6h-8zm13-13h6l-3-9-3 9z" fill="#0f766e"/>
+  <path d="M72 44h8v28h-8V44z" fill="#0f766e"/>
+  <path d="M88 42l3.1 7.4 7.9 1-5.9 5.2 1.6 7.8-6.7-4-6.8 4 1.7-7.8-5.9-5.2 7.9-1L88 42z" fill="#ef4444"/>
+  <path d="M29 23l2.1 5 5.4.7-4 3.5 1.1 5.3-4.6-2.7-4.6 2.7 1.1-5.3-4-3.5 5.4-.7L29 23z" fill="#facc15"/>
+</svg>

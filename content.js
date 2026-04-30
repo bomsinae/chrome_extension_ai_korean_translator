@@ -314,6 +314,8 @@ function renderTranslateButton(rect, pointerPosition) {
 }
 
 async function requestTranslation(text) {
+  await loadContentSettings();
+
   const requestId = ++activeRequestId;
   showBubbleAtCurrentSelection("번역 중...", false, true);
 
@@ -818,6 +820,7 @@ function showBubbleAtCurrentSelection(message, isError, isLoading = false, showO
   bubbleActions.style.display = isLoading ? "none" : "flex";
   bubbleOptionsButton.style.display = showOptions ? "inline-flex" : "none";
   bubbleOptionsButton.disabled = !showOptions;
+  applyBubbleTypography();
   bubble.style.display = "block";
 
   positionBubble(lastSelectionRect, lastSelectionAnchor);

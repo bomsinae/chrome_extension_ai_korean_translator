@@ -5,6 +5,9 @@ let bubble = null;
 let bubbleText = null;
 let bubbleActions = null;
 let bubbleOptionsButton = null;
+let bubbleDragHandle = null;
+let bubbleDragState = null;
+let isBubbleManuallyPositioned = false;
 let activeRequestId = 0;
 let isPointerSelecting = false;
 let lastPointerPosition = null;
@@ -317,6 +320,7 @@ async function requestTranslation(text) {
   await loadContentSettings();
 
   const requestId = ++activeRequestId;
+  isBubbleManuallyPositioned = false;
   showBubbleAtCurrentSelection("번역 중...", false, true);
 
   try {
@@ -764,8 +768,22 @@ function showBubbleAtCurrentSelection(message, isError, isLoading = false, showO
       lineHeight: "1.5",
       fontFamily: getBubbleFontFamily(),
       boxShadow: "0 18px 45px rgba(61, 37, 21, 0.16)",
-      whiteSpace: "pre-wrap"
+      whiteSpace: "pre-wrap",
+      userSelect: "text"
     });
+
+    bubbleDragHandle = document.createElement("div");
+    bubbleDragHandle.title = "말풍선 이동";
+    Object.assign(bubbleDragHandle.style, {
+      height: "22px",
+      margin: "-6px -6px 8px",
+      borderRadius: "10px 10px 4px 4px",
+      background: "linear-gradient(180deg, rgba(103, 80, 55, 0.13), rgba(103, 80, 55, 0.05))",
+      cursor: "grab",
+      touchAction: "none",
+      userSelect: "none"
+    });
+    bubbleDragHandle.addEventListener("pointerdown", handleBubblePointerDown);
 
     bubbleText = document.createElement("div");
     bubbleActions = document.createElement("div");
@@ -809,7 +827,7 @@ function showBubbleAtCurrentSelection(message, isError, isLoading = false, showO
     });
 
     bubbleActions.append(bubbleOptionsButton, copyButton, closeButton);
-    bubble.append(bubbleText, bubbleActions);
+    bubble.append(bubbleDragHandle, bubbleText, bubbleActions);
     document.body.appendChild(bubble);
   }
 
@@ -823,7 +841,9 @@ function showBubbleAtCurrentSelection(message, isError, isLoading = false, showO
   applyBubbleTypography();
   bubble.style.display = "block";
 
-  positionBubble(lastSelectionRect, lastSelectionAnchor);
+  if (!isBubbleManuallyPositioned) {
+    positionBubble(lastSelectionRect, lastSelectionAnchor);
+  }
 }
 
 function applyBubbleTypography() {
@@ -920,12 +940,86 @@ function positionBubble(rect, anchor = lastSelectionAnchor) {
   bubble.style.left = `${left}px`;
 }
 
+function handleBubblePointerDown(event) {
+  if (event.button !== 0 || isBubbleControl(event.target)) {
+    return;
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  const rect = bubble.getBoundingClientRect();
+  bubbleDragState = {
+    pointerId: event.pointerId,
+    startClientX: event.clientX,
+    startClientY: event.clientY,
+    startScrollX: window.scrollX,
+    startScrollY: window.scrollY,
+    startLeft: window.scrollX + rect.left,
+    startTop: window.scrollY + rect.top
+  };
+
+  bubble.setPointerCapture?.(event.pointerId);
+  bubbleDragHandle.style.cursor = "grabbing";
+  document.addEventListener("pointermove", handleBubblePointerMove, true);
+  document.addEventListener("pointerup", handleBubblePointerUp, true);
+  document.addEventListener("pointercancel", handleBubblePointerUp, true);
+}
+
+function handleBubblePointerMove(event) {
+  if (!bubble || !bubbleDragState || event.pointerId !== bubbleDragState.pointerId) {
+    return;
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  const nextLeft = bubbleDragState.startLeft + event.clientX - bubbleDragState.startClientX + window.scrollX - bubbleDragState.startScrollX;
+  const nextTop = bubbleDragState.startTop + event.clientY - bubbleDragState.startClientY + window.scrollY - bubbleDragState.startScrollY;
+  moveBubbleTo(nextLeft, nextTop);
+  isBubbleManuallyPositioned = true;
+}
+
+function handleBubblePointerUp(event) {
+  if (!bubbleDragState || event.pointerId !== bubbleDragState.pointerId) {
+    return;
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+  bubble?.releasePointerCapture?.(event.pointerId);
+  bubbleDragState = null;
+
+  if (bubbleDragHandle) {
+    bubbleDragHandle.style.cursor = "grab";
+  }
+
+  document.removeEventListener("pointermove", handleBubblePointerMove, true);
+  document.removeEventListener("pointerup", handleBubblePointerUp, true);
+  document.removeEventListener("pointercancel", handleBubblePointerUp, true);
+}
+
+function moveBubbleTo(left, top) {
+  const gap = 12;
+  const minLeft = window.scrollX + gap;
+  const minTop = window.scrollY + gap;
+  const maxLeft = window.scrollX + document.documentElement.clientWidth - bubble.offsetWidth - gap;
+  const maxTop = window.scrollY + document.documentElement.clientHeight - bubble.offsetHeight - gap;
+
+  bubble.style.left = `${Math.max(minLeft, Math.min(left, maxLeft))}px`;
+  bubble.style.top = `${Math.max(minTop, Math.min(top, maxTop))}px`;
+}
+
+function isBubbleControl(target) {
+  return Boolean(target?.closest?.("button, a, input, textarea, select, [role='button']"));
+}
+
 function repositionFloatingUi() {
   if (translateButton?.style.display === "block" && lastSelectionRect) {
     renderTranslateButton(lastSelectionRect);
   }
 
-  if (bubble?.style.display === "block" && lastSelectionRect) {
+  if (bubble?.style.display === "block" && lastSelectionRect && !isBubbleManuallyPositioned) {
     positionBubble(lastSelectionRect);
   }
 }
